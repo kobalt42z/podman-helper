@@ -12,6 +12,10 @@ public static class SshConfigManager
 
     public static string AliasFor(string machineName) => AliasPrefix + machineName;
 
+    /// <summary>Private known_hosts for the machine's host key, which changes on every <c>podman machine init</c>.</summary>
+    public static string KnownHostsPath() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "podman-helper", "known_hosts");
+
     public static string DefaultConfigPath() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh", "config");
 
@@ -26,7 +30,9 @@ public static class SshConfigManager
         sb.Append("  IdentityFile \"").Append(identityFile).Append("\"\n");
         sb.Append("  IdentitiesOnly yes\n");
         sb.Append("  StrictHostKeyChecking no\n");
-        sb.Append("  UserKnownHostsFile ").Append(OperatingSystem.IsWindows() ? "NUL" : "/dev/null").Append('\n');
+        // A real file, not NUL: an ssh that does not treat NUL as the null device (Git for Windows, MSYS)
+        // would create a file literally named "NUL" in the current folder, e.g. the .dcproj folder on F5.
+        sb.Append("  UserKnownHostsFile \"").Append(KnownHostsPath()).Append("\"\n");
         sb.Append("  LogLevel ERROR\n");
         sb.Append("  ServerAliveInterval 30\n");
         sb.Append("# <<< ").Append(alias).Append(" <<<\n");
@@ -71,6 +77,7 @@ public static class SshConfigManager
             return false;
         }
         Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(KnownHostsPath())!);
         File.WriteAllText(configPath, Upsert(existing, alias, block));
         return true;
     }
