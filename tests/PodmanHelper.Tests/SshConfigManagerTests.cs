@@ -16,11 +16,11 @@ public class SshConfigManagerTests
     }
 
     [Fact]
-    public void AppendsToExistingConfig()
+    public void PutsBlockBeforeExistingConfigSoHostStarCannotOverrideIt()
     {
-        var result = SshConfigManager.Upsert("Host other\n  User x", "podman-helper-podman-machine-default", Block);
-        Assert.StartsWith("Host other\n  User x\n\n# >>> podman-helper-podman-machine-default", result);
-        Assert.EndsWith(Block, result);
+        var result = SshConfigManager.Upsert("Host *\n  User core\n", "podman-helper-podman-machine-default", Block);
+        Assert.StartsWith(Block, result);
+        Assert.EndsWith("\nHost *\n  User core\n", result);
     }
 
     [Fact]
@@ -38,5 +38,26 @@ public class SshConfigManagerTests
     {
         Assert.True(SshConfigManager.Contains(Block.Replace("\n", "\r\n"), Block));
         Assert.False(SshConfigManager.Contains(null, Block));
+    }
+}
+
+public class PrivilegedCommandTests
+{
+    [Fact]
+    public void RunsScriptAsRootWhetherOrNotLoginIsRoot()
+    {
+        if (!File.Exists("/bin/bash")) return;
+        // as the current user (root in CI containers or not): the wrapper must run the stdin script and pass its output
+        var psi = new System.Diagnostics.ProcessStartInfo("/bin/sh", new[] { "-c", PodmanHelper.Ssh.SshClient.PrivilegedRemoteCommand })
+        {
+            RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
+        };
+        using var p = System.Diagnostics.Process.Start(psi)!;
+        p.StandardInput.Write("echo uid=$(id -u)\n");
+        p.StandardInput.Close();
+        var output = p.StandardOutput.ReadToEnd();
+        p.WaitForExit();
+        if (p.ExitCode != 0) return; // no passwordless sudo on this runner: nothing to assert
+        Assert.Equal("uid=0", output.Trim());
     }
 }

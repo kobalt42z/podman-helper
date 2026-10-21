@@ -41,7 +41,7 @@ public static class MountCommand
         }
 
         Output.Step("preparing sync directories in the machine");
-        await ctx.Ssh.RunScriptOrThrowAsync(VmScripts.Prepare(entries, ctx.Machine.SshUser), privileged: true, "preparing sync directories", ct: ct);
+        await ctx.Ssh.RunScriptOrThrowAsync(VmScripts.Prepare(entries), privileged: true, "preparing sync directories", ct: ct);
 
         Output.Step("starting mutagen daemon");
         await ctx.Mutagen.DaemonStartAsync(ct);
@@ -122,7 +122,7 @@ public static class MountCommand
             Output.Step($"creating session {e.SessionName}: {e.WindowsPath} -> {beta} ({e.Mode.ToMutagen()})");
         }
 
-        await ctx.Mutagen.CreateAsync(e, ctx.Ssh.Alias, ctx.Machine.Name, ct);
+        await ctx.Mutagen.CreateAsync(e, ctx.Ssh.User, ctx.Ssh.Alias, ctx.Machine.Name, ct);
     }
 
     private static async Task WaitSettledAsync(Context ctx, List<FileMapEntry> entries, TimeSpan timeout, CancellationToken ct)

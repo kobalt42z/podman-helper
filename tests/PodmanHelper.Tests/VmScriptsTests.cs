@@ -93,7 +93,7 @@ public class FileEntryTests
         };
         foreach (var script in new[]
                  {
-                     VmScripts.Prepare(entries, "root"), VmScripts.ApplyExecBits(entries), VmScripts.Mount(entries),
+                     VmScripts.Prepare(entries), VmScripts.ApplyExecBits(entries), VmScripts.Mount(entries),
                      VmScripts.Status(entries), VmScripts.Unmount(entries, purge: true), VmScripts.Doctor,
                  })
         {

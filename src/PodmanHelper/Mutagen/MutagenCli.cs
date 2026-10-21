@@ -68,7 +68,7 @@ public sealed class MutagenCli
         return MutagenSession.ParseList(r.Stdout);
     }
 
-    public async Task CreateAsync(FileMapEntry entry, string sshAlias, string machineName, CancellationToken ct = default)
+    public async Task CreateAsync(FileMapEntry entry, string sshUser, string sshAlias, string machineName, CancellationToken ct = default)
     {
         var args = new List<string>
         {
@@ -91,7 +91,8 @@ public sealed class MutagenCli
             args.Add(ignore);
         }
         args.Add(entry.WindowsPath);
-        args.Add($"{sshAlias}:{entry.VmSyncPath}");
+        // explicit user: wins over any User line in ~/.ssh/config
+        args.Add($"{sshUser}@{sshAlias}:{entry.VmSyncPath}");
 
         var r = await _runner.RunAsync(new ProcessSpec(Exe, args) { Environment = _env, Timeout = TimeSpan.FromMinutes(3) }, ct);
         if (!r.Success)

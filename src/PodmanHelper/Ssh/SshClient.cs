@@ -20,11 +20,18 @@ public sealed class SshClient
         SshExe = sshExe;
     }
 
-    /// <summary>Runs <paramref name="script"/> with <c>bash -s</c> on the machine, through <c>sudo</c> when privileged and not root.</summary>
+    /// <summary>
+    /// Elevates on the remote side only when needed: whatever user the login really lands as (a "Host *" block or
+    /// a rootless machine can make it core instead of root), a privileged script runs as uid 0.
+    /// </summary>
+    internal const string PrivilegedRemoteCommand =
+        "if [ \"$(id -u)\" = 0 ]; then exec bash -s; else exec sudo -n bash -s; fi";
+
+    /// <summary>Runs <paramref name="script"/> with <c>bash -s</c> on the machine, as root when <paramref name="privileged"/>.</summary>
     public Task<ProcessResult> RunScriptAsync(string script, bool privileged, TimeSpan? timeout = null, CancellationToken ct = default)
     {
-        var remote = privileged && User != "root" ? "sudo -n bash -s" : "bash -s";
-        var spec = new ProcessSpec(SshExe, new[] { "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", Alias, remote })
+        var remote = privileged ? PrivilegedRemoteCommand : "bash -s";
+        var spec = new ProcessSpec(SshExe, new[] { "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", "-l", User, Alias, remote })
         {
             StandardInput = "set -e\n" + script.Replace("\r\n", "\n") + "\n",
             Timeout = timeout ?? TimeSpan.FromMinutes(2),

@@ -53,15 +53,9 @@ public static class SshConfigManager
             }
         }
 
-        if (text.Length > 0 && !text.EndsWith('\n'))
-        {
-            text += "\n";
-        }
-        if (text.Length > 0)
-        {
-            text += "\n";
-        }
-        return text + block;
+        // OpenSSH uses the first value it finds for each option, so the block goes first: a "Host *"
+        // block above it would otherwise win for User and IdentityFile.
+        return text.Length == 0 ? block : block + "\n" + text;
     }
 
     /// <summary>Returns true when the file content already contains exactly this block.</summary>

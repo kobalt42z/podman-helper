@@ -6,17 +6,21 @@ namespace PodmanHelper.Vm;
 /// <summary>Bash snippets executed inside the podman machine. All of them are idempotent.</summary>
 public static class VmScripts
 {
-    /// <summary>Creates the sync directories, owned by the SSH user so the Mutagen agent can write them. Needs sudo.</summary>
-    public static string Prepare(IEnumerable<FileMapEntry> entries, string sshUser)
+    /// <summary>
+    /// Creates the sync directories, owned by the user the SSH alias logs in as (the one the Mutagen agent runs as):
+    /// <c>$SUDO_USER</c> when the script was elevated with sudo, else the current user. Needs root.
+    /// </summary>
+    public static string Prepare(IEnumerable<FileMapEntry> entries)
     {
         var sb = new StringBuilder();
+        sb.Append("owner=\"${SUDO_USER:-$(id -un)}\"\n");
         sb.Append("mkdir -p ").Append(VmPaths.SyncRoot).Append('\n');
         sb.Append("touch ").Append(VmPaths.MountsFile).Append('\n');
         foreach (var e in entries)
         {
             var dir = VmPaths.ShellQuote(e.VmSyncDirectory);
             sb.Append("mkdir -p ").Append(dir).Append('\n');
-            sb.Append("chown ").Append(VmPaths.ShellQuote(sshUser)).Append(' ').Append(dir).Append('\n');
+            sb.Append("chown \"$owner\" ").Append(dir).Append('\n');
         }
         return sb.ToString();
     }
