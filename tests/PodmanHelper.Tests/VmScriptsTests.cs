@@ -51,3 +51,59 @@ public class VmScriptsTests
         Assert.DoesNotContain("rm -rf", VmScripts.Unmount(new[] { e }, purge: false));
     }
 }
+
+public class FileEntryTests
+{
+    private static FileMapEntry FileEntry(string path) => new()
+    {
+        WindowsPath = path,
+        IsFile = true,
+        Scope = FileMapEntry.GlobalScope,
+        SourceFile = "t",
+        Line = 1,
+    };
+
+    [Fact]
+    public void FileEntrySyncsIntoItsOwnDirectory()
+    {
+        var e = FileEntry(@"C:\Users\shhmouel kessous\myuser.keytab");
+        Assert.Equal("myuser.keytab", e.FileName);
+        Assert.Equal(VmPaths.SyncRoot + "/" + e.Id + "/myuser.keytab", e.VmSyncPath);
+        Assert.Equal("/mnt/c/Users/shhmouel kessous/myuser.keytab", e.VmTarget);
+    }
+
+    [Fact]
+    public void MountScriptForFileTouchesInsteadOfMkdir()
+    {
+        var e = FileEntry(@"C:\Users\me\myuser.keytab");
+        var script = VmScripts.Mount(new[] { e });
+        Assert.Contains("touch '/mnt/c/Users/me/myuser.keytab'", script);
+        Assert.DoesNotContain("mkdir -p '/mnt/c/Users/me/myuser.keytab'", script);
+        Assert.Contains("mount --bind '" + e.VmSyncPath + "' '/mnt/c/Users/me/myuser.keytab'", script);
+    }
+
+    [Fact]
+    public void ScriptsAreValidBash()
+    {
+        if (!File.Exists("/bin/bash")) return;
+        var entries = new FileMapEntry[]
+        {
+            FileEntry(@"C:\Users\it's me\a.keytab"),
+            new() { WindowsPath = @"C:\Users\me\vsdbg", ExecGlobs = new[] { "**/vsdbg" }, Scope = FileMapEntry.GlobalScope, SourceFile = "t", Line = 2 },
+        };
+        foreach (var script in new[]
+                 {
+                     VmScripts.Prepare(entries, "root"), VmScripts.ApplyExecBits(entries), VmScripts.Mount(entries),
+                     VmScripts.Status(entries), VmScripts.Unmount(entries, purge: true), VmScripts.Doctor,
+                 })
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo("/bin/bash", "-n") { RedirectStandardInput = true, RedirectStandardError = true };
+            using var p = System.Diagnostics.Process.Start(psi)!;
+            p.StandardInput.Write(script);
+            p.StandardInput.Close();
+            var err = p.StandardError.ReadToEnd();
+            p.WaitForExit();
+            Assert.True(p.ExitCode == 0, err + "\n" + script);
+        }
+    }
+}

@@ -4,6 +4,8 @@
 # Every entry here is overlaid for every project. Put things that all Visual Studio
 # projects need: the remote debugger, maybe the NuGet cache.
 #
+# Entries can be folders or single files (a file is synced and bind-mounted on its own).
+#
 # Format: <windows-path> [key=value ...]
 #   ~ and %VAR% expand. Relative paths are resolved from this file's directory.
 #   Quote the path if it contains spaces: "C:\Program Files\x"
@@ -17,6 +19,9 @@
 
 # Visual Studio remote debugger (mounted by VS as ~\vsdbg\vs2017u5:/remote_debugger)
 ~\vsdbg    mode=one-way-replica  x=**/vsdbg,**/*.sh
+
+# Kerberos keytab: kinit locks it with fcntl, which fails on 9p
+# ~\myuser.keytab
 
 # NuGet cache: only enable if a project needs it inside the container (initial sync can be slow)
 # ~\.nuget\packages    mode=one-way-replica

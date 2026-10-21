@@ -28,7 +28,7 @@ public static class VmScripts
         foreach (var e in entries)
         {
             if (e.ExecGlobs.Count == 0) continue;
-            var dir = VmPaths.ShellQuote(e.VmSyncDirectory);
+            var dir = VmPaths.ShellQuote(e.VmSyncPath);
             var tests = string.Join(" -o ", e.ExecGlobs.Select(g => GlobToFindTest(e.VmSyncDirectory, g)));
             sb.Append("find ").Append(dir).Append(" -type f \\( ").Append(tests).Append(" \\) ! -perm -u+x -exec chmod a+x {} +\n");
         }
@@ -54,65 +54,79 @@ public static class VmScripts
         return "-path " + VmPaths.ShellQuote(pattern);
     }
 
-    /// <summary>Bind-mounts every synced directory over its VM target, replacing a stale bind of another source. Needs sudo.</summary>
+    /// <summary>
+    /// Shell test that is true when <paramref name="dst"/> currently shows the synced copy: a bind mount exposes the
+    /// source's device and inode, which also catches a file entry whose copy Mutagen has since replaced (new inode).
+    /// </summary>
+    private static string SameInode(string src, string dst) =>
+        $"[ \"$(stat -c %d:%i {src} 2>/dev/null)\" = \"$(stat -c %d:%i {dst} 2>/dev/null)\" ]";
+
+    private static string MountPointOf(string dst) =>
+        $"mp=$(findmnt -n -o TARGET --target {dst} 2>/dev/null | tail -n1 || true)\n";
+
+    /// <summary>Bind-mounts every synced copy (folder or file) over its VM target, replacing a stale bind. Needs root.</summary>
     public static string Mount(IEnumerable<FileMapEntry> entries)
     {
         var sb = new StringBuilder();
         sb.Append("touch ").Append(VmPaths.MountsFile).Append('\n');
         foreach (var e in entries)
         {
-            var src = VmPaths.ShellQuote(e.VmSyncDirectory);
+            var src = VmPaths.ShellQuote(e.VmSyncPath);
             var dst = VmPaths.ShellQuote(e.VmTarget);
-            var marker = VmPaths.ShellQuote("[" + e.VmSyncDirectory + "]");
-            sb.Append("mkdir -p ").Append(dst).Append('\n');
-            sb.Append("cur=$(findmnt -n -o SOURCE --target ").Append(dst).Append(" 2>/dev/null | tail -n1 || true)\n");
-            sb.Append("mp=$(findmnt -n -o TARGET --target ").Append(dst).Append(" 2>/dev/null | tail -n1 || true)\n");
-            // already bound from our sync dir: nothing to do
-            sb.Append("if [ \"$mp\" = ").Append(dst).Append(" ] && [ \"${cur#*\\[}\" != \"$cur\" ] && [ \"[${cur#*\\[}\" = ").Append(marker).Append(" ]; then echo ").Append(VmPaths.ShellQuote("ok " + e.Id)).Append("; else\n");
-            // another mount sits exactly on the target (stale bind): take it off first
+            var line = VmPaths.ShellQuote(e.VmSyncPath + " " + e.VmTarget);
+            sb.Append("[ -e ").Append(src).Append(" ] || { echo ").Append(VmPaths.ShellQuote("synced copy missing: " + e.VmSyncPath)).Append(" >&2; exit 3; }\n");
+            if (e.IsFile)
+            {
+                sb.Append("[ -e ").Append(dst).Append(" ] || { mkdir -p \"$(dirname ").Append(dst).Append(")\" && touch ").Append(dst).Append("; }\n");
+            }
+            else
+            {
+                sb.Append("mkdir -p ").Append(dst).Append('\n');
+            }
+            sb.Append("if ").Append(SameInode(src, dst)).Append("; then echo ").Append(VmPaths.ShellQuote("ok " + e.Id)).Append("; else\n");
+            sb.Append("  ").Append(MountPointOf(dst));
+            // a stale bind sits exactly on the target (old copy, or a file Mutagen replaced): take it off first
             sb.Append("  if [ \"$mp\" = ").Append(dst).Append(" ]; then umount ").Append(dst).Append(" || true; fi\n");
             sb.Append("  mount --bind ").Append(src).Append(' ').Append(dst).Append('\n');
             sb.Append("  echo ").Append(VmPaths.ShellQuote("mounted " + e.Id)).Append('\n');
             sb.Append("fi\n");
-            sb.Append("grep -qxF ").Append(VmPaths.ShellQuote(e.VmSyncDirectory + " " + e.VmTarget)).Append(' ').Append(VmPaths.MountsFile)
-              .Append(" || echo ").Append(VmPaths.ShellQuote(e.VmSyncDirectory + " " + e.VmTarget)).Append(" >> ").Append(VmPaths.MountsFile).Append('\n');
+            sb.Append("grep -qxF ").Append(line).Append(' ').Append(VmPaths.MountsFile)
+              .Append(" || echo ").Append(line).Append(" >> ").Append(VmPaths.MountsFile).Append('\n');
         }
         return sb.ToString();
     }
 
-    /// <summary>Prints one line per entry: <c>&lt;id&gt; mounted|stale|none &lt;size&gt;</c>. No sudo needed.</summary>
+    /// <summary>Prints one line per entry: <c>&lt;id&gt; mounted|stale|none &lt;size&gt;</c>. No root needed.</summary>
     public static string Status(IEnumerable<FileMapEntry> entries)
     {
         var sb = new StringBuilder();
         foreach (var e in entries)
         {
             var dst = VmPaths.ShellQuote(e.VmTarget);
-            var src = VmPaths.ShellQuote(e.VmSyncDirectory);
-            var marker = VmPaths.ShellQuote("[" + e.VmSyncDirectory + "]");
-            sb.Append("cur=$(findmnt -n -o SOURCE --target ").Append(dst).Append(" 2>/dev/null | tail -n1 || true)\n");
-            sb.Append("mp=$(findmnt -n -o TARGET --target ").Append(dst).Append(" 2>/dev/null | tail -n1 || true)\n");
-            sb.Append("size=$(du -sh ").Append(src).Append(" 2>/dev/null | cut -f1 || echo -)\n");
-            sb.Append("if [ \"$mp\" = ").Append(dst).Append(" ] && [ \"[${cur#*\\[}\" = ").Append(marker).Append(" ]; then state=mounted; elif [ \"$mp\" = ").Append(dst).Append(" ]; then state=stale; else state=none; fi\n");
+            var src = VmPaths.ShellQuote(e.VmSyncPath);
+            sb.Append(MountPointOf(dst));
+            sb.Append("size=$(du -sh ").Append(src).Append(" 2>/dev/null | cut -f1 || true)\n");
+            sb.Append("if ").Append(SameInode(src, dst)).Append("; then state=mounted; elif [ \"$mp\" = ").Append(dst).Append(" ]; then state=stale; else state=none; fi\n");
             sb.Append("echo \"").Append(e.Id).Append(" $state ${size:--}\"\n");
         }
         return sb.ToString();
     }
 
-    /// <summary>Removes the bind mounts (and, with purge, the synced copies). Needs sudo.</summary>
+    /// <summary>Removes the bind mounts (and, with purge, the synced copies). Needs root.</summary>
     public static string Unmount(IEnumerable<FileMapEntry> entries, bool purge)
     {
         var sb = new StringBuilder();
         foreach (var e in entries)
         {
             var dst = VmPaths.ShellQuote(e.VmTarget);
-            var src = VmPaths.ShellQuote(e.VmSyncDirectory);
-            sb.Append("mp=$(findmnt -n -o TARGET --target ").Append(dst).Append(" 2>/dev/null | tail -n1 || true)\n");
+            var dir = VmPaths.ShellQuote(e.VmSyncDirectory);
+            sb.Append(MountPointOf(dst));
             sb.Append("if [ \"$mp\" = ").Append(dst).Append(" ]; then umount ").Append(dst).Append(" && echo ").Append(VmPaths.ShellQuote("unmounted " + e.Id)).Append("; fi\n");
-            sb.Append("if [ -f ").Append(VmPaths.MountsFile).Append(" ]; then grep -vxF ").Append(VmPaths.ShellQuote(e.VmSyncDirectory + " " + e.VmTarget)).Append(' ')
+            sb.Append("if [ -f ").Append(VmPaths.MountsFile).Append(" ]; then grep -vxF ").Append(VmPaths.ShellQuote(e.VmSyncPath + " " + e.VmTarget)).Append(' ')
               .Append(VmPaths.MountsFile).Append(" > ").Append(VmPaths.MountsFile).Append(".tmp || true; mv ").Append(VmPaths.MountsFile).Append(".tmp ").Append(VmPaths.MountsFile).Append("; fi\n");
             if (purge)
             {
-                sb.Append("rm -rf ").Append(src).Append(" && echo ").Append(VmPaths.ShellQuote("purged " + e.Id)).Append('\n');
+                sb.Append("rm -rf ").Append(dir).Append(" && echo ").Append(VmPaths.ShellQuote("purged " + e.Id)).Append('\n');
             }
         }
         return sb.ToString();

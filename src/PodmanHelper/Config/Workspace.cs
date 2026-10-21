@@ -89,6 +89,13 @@ public sealed class Workspace
         }
 
         var merged = FileMapMerger.Merge(global, project);
+        for (var i = 0; i < merged.Entries.Count; i++)
+        {
+            if (File.Exists(merged.Entries[i].WindowsPath))
+            {
+                merged.Entries[i] = merged.Entries[i] with { IsFile = true };
+            }
+        }
         return new Workspace
         {
             GlobalFile = globalFile,

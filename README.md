@@ -34,7 +34,7 @@ podman-helper doctor
 
 ## Files
 
-Two `filemap-list.txt` files with the same format. The global one at
+Entries can be folders or single files (for example a Kerberos keytab). Two `filemap-list.txt` files with the same format. The global one at
 `%USERPROFILE%\.podman-helper\filemap-list.txt` covers what every project needs (vsdbg); the project one
 sits next to the `.dcproj`. `mount` takes the union; a project entry with the same path overrides the
 global one, and `!path` removes a global entry for that project.
@@ -44,6 +44,7 @@ global one, and `!path` removes a global entry for that project.
 ~\vsdbg                         mode=one-way-replica  x=**/vsdbg,**/*.sh
 .\src\Api\bin\Debug\net10.0     mode=one-way-replica
 .\data                          mode=two-way-safe ignore=*.log,**/tmp
+~\myuser.keytab                 # single file
 !~\.nuget\packages
 ```
 
@@ -110,6 +111,10 @@ plain builds, `PodmanHelperTimeout`, `PodmanHelperExe`.
 - **Sync, not a mount.** Changes made on Windows reach the VM after a sync cycle (well under a second with
   file watching); the initial copy of a large tree takes minutes. Keep the NuGet cache off the list unless a
   project needs it in the container.
+- **Single files.** Mutagen replaces a changed file with a new one, and a bind mount keeps showing the
+  old one until the next `mount` (or F5) re-binds it. Fine for keytabs and config files that rarely change;
+  sync the folder instead if the file changes while containers run. Relative paths resolve from the folder
+  of the filemap file, so write `~\myuser.keytab` or a full path.
 - **Execute bit.** Files created on Windows arrive without it; use `x=` globs. The helper re-applies them on
   every `mount`.
 - **Two-way entries** can conflict; `status` shows conflicts and `mount` fails on them. Never two-way sync a

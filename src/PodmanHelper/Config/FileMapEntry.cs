@@ -59,7 +59,16 @@ public sealed record FileMapEntry
     /// <summary>Stable short id derived from the path; used for the Mutagen session name and the VM directory.</summary>
     public string Id => EntryId.For(WindowsPath);
     public string SessionName => "ph-" + Id;
+    /// <summary>True when the Windows path is a single file (e.g. a keytab) rather than a folder. Set by <see cref="Workspace.Load"/>.</summary>
+    public bool IsFile { get; init; }
+
+    /// <summary>Per-entry directory in the VM; a folder entry syncs into it, a file entry syncs into a file inside it.</summary>
     public string VmSyncDirectory => VmPaths.SyncRoot + "/" + Id;
+
+    /// <summary>The Mutagen beta root and the bind-mount source.</summary>
+    public string VmSyncPath => IsFile ? VmSyncDirectory + "/" + FileName : VmSyncDirectory;
+
+    public string FileName => WindowsPath[(WindowsPath.LastIndexOf('\\') + 1)..];
     public string VmTarget => TargetOverride ?? VmPaths.FromWindows(WindowsPath);
 }
 
