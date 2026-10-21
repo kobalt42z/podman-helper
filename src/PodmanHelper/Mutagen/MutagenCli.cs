@@ -10,6 +10,7 @@ public sealed class MutagenCli
     public const string OwnerLabel = "podman-helper";
     public const string ScopeLabel = "ph-scope";
     public const string MachineLabel = "ph-machine";
+    public const string ModeLabel = "ph-mode";
 
     private readonly IProcessRunner _runner;
     private readonly Dictionary<string, string> _env;
@@ -67,7 +68,7 @@ public sealed class MutagenCli
         return MutagenSession.ParseList(r.Stdout);
     }
 
-    public async Task CreateAsync(FileMapEntry entry, string sshAlias, string machineName, CancellationToken ct = default)
+    public async Task CreateAsync(FileMapEntry entry, string sshUser, string sshAlias, string machineName, CancellationToken ct = default)
     {
         var args = new List<string>
         {
@@ -76,6 +77,7 @@ public sealed class MutagenCli
             "--label", $"{OwnerLabel}=1",
             "--label", $"{ScopeLabel}={ScopeId.For(entry.Scope)}",
             "--label", $"{MachineLabel}={machineName}",
+            "--label", $"{ModeLabel}={entry.Mode.ToMutagen()}",
             "--sync-mode", entry.Mode.ToMutagen(),
             "--symlink-mode", "portable",
             "--ignore-vcs",
@@ -89,7 +91,8 @@ public sealed class MutagenCli
             args.Add(ignore);
         }
         args.Add(entry.WindowsPath);
-        args.Add($"{sshAlias}:{entry.VmSyncDirectory}");
+        // explicit user: wins over any User line in ~/.ssh/config
+        args.Add($"{sshUser}@{sshAlias}:{entry.VmSyncPath}");
 
         var r = await _runner.RunAsync(new ProcessSpec(Exe, args) { Environment = _env, Timeout = TimeSpan.FromMinutes(3) }, ct);
         if (!r.Success)

@@ -3,6 +3,8 @@
 # (%USERPROFILE%\.podman-helper\filemap-list.txt); a project entry with the same path
 # overrides the global one, and "!path" removes a global entry for this project.
 #
+# Entries can be folders or single files.
+#
 # Format: <windows-path> [key=value ...]
 #   Relative paths are resolved from this file's directory.
 #   mode=one-way-replica|one-way-safe|two-way-safe|two-way-resolved   (default one-way-replica)
@@ -12,4 +14,5 @@
 # Examples:
 # .\src\Api\bin\Debug\net10.0     mode=one-way-replica
 # .\data                          mode=two-way-safe ignore=*.log,**/tmp
+# .\secrets\service.keytab
 # !~\.nuget\packages

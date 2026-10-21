@@ -33,14 +33,15 @@ public static class MountCommand
 
         foreach (var e in entries)
         {
-            if (!Directory.Exists(e.WindowsPath))
+            if (!Directory.Exists(e.WindowsPath) && !File.Exists(e.WindowsPath))
             {
-                throw new HelperException($"{e.SourceFile}:{e.Line}: Windows path does not exist: {e.WindowsPath}");
+                throw new HelperException($"{e.SourceFile}:{e.Line}: Windows path does not exist: {e.WindowsPath}" +
+                                          " (relative paths resolve from the folder of the filemap file; use a full path or ~\\...)");
             }
         }
 
         Output.Step("preparing sync directories in the machine");
-        await ctx.Ssh.RunScriptOrThrowAsync(VmScripts.Prepare(entries, ctx.Machine.SshUser), privileged: true, "preparing sync directories", ct: ct);
+        await ctx.Ssh.RunScriptOrThrowAsync(VmScripts.Prepare(entries), privileged: true, "preparing sync directories", ct: ct);
 
         Output.Step("starting mutagen daemon");
         await ctx.Mutagen.DaemonStartAsync(ct);
@@ -90,13 +91,13 @@ public static class MountCommand
 
     private static async Task EnsureSessionAsync(Context ctx, FileMapEntry e, Dictionary<string, MutagenSession> sessions, CancellationToken ct)
     {
-        var beta = $"{ctx.Ssh.Alias}:{e.VmSyncDirectory}";
+        var beta = $"{ctx.Ssh.Alias}:{e.VmSyncPath}";
         if (sessions.TryGetValue(e.SessionName, out var existing))
         {
             var samePath = string.Equals(existing.AlphaPath.TrimEnd('\\', '/'), e.WindowsPath.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)
-                           && existing.BetaPath == e.VmSyncDirectory
+                           && existing.BetaPath == e.VmSyncPath
                            && existing.BetaHost == ctx.Ssh.Alias;
-            var sameMode = existing.Labels.TryGetValue("ph-mode", out var m) ? m == e.Mode.ToMutagen() : true;
+            var sameMode = existing.Labels.TryGetValue(MutagenCli.ModeLabel, out var m) ? m == e.Mode.ToMutagen() : true;
 
             if (samePath && sameMode && !existing.IsHalted)
             {
@@ -121,7 +122,7 @@ public static class MountCommand
             Output.Step($"creating session {e.SessionName}: {e.WindowsPath} -> {beta} ({e.Mode.ToMutagen()})");
         }
 
-        await ctx.Mutagen.CreateAsync(e, ctx.Ssh.Alias, ctx.Machine.Name, ct);
+        await ctx.Mutagen.CreateAsync(e, ctx.Ssh.User, ctx.Ssh.Alias, ctx.Machine.Name, ct);
     }
 
     private static async Task WaitSettledAsync(Context ctx, List<FileMapEntry> entries, TimeSpan timeout, CancellationToken ct)

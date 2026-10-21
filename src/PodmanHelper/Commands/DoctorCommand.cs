@@ -50,8 +50,8 @@ public static class DoctorCommand
         foreach (var e in ws.Merged.Errors) { problems++; Output.Warn(e); }
         foreach (var e in ws.Entries)
         {
-            if (Directory.Exists(e.WindowsPath)) Output.Ok($"entry {e.WindowsPath} -> {e.VmTarget}");
-            else Fail($"entry path does not exist: {e.WindowsPath} ({e.SourceFile}:{e.Line})", "create it or fix the line");
+            if (Directory.Exists(e.WindowsPath) || File.Exists(e.WindowsPath)) Output.Ok($"entry {e.WindowsPath} ({(e.IsFile ? "file" : "folder")}) -> {e.VmTarget}");
+            else Fail($"entry path does not exist: {e.WindowsPath} ({e.SourceFile}:{e.Line})", "fix the line; relative paths resolve from the folder of the filemap file, so use a full path or ~\\...");
         }
 
         // ssh client
