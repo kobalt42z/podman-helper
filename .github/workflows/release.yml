@@ -1,10 +1,15 @@
 name: release
 
-# Pushing a tag like v0.1.0 builds the NuGet tool package and the single-file Windows exe
-# and publishes both on a GitHub release.
+# Pushing a tag like v0.1.0 (or running this workflow by hand with a version) builds the NuGet
+# tool package and the single-file Windows exe and publishes both on a GitHub release.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.1.0 (the tag v<version> is created on the release)"
+        required: true
 
 permissions:
   contents: write
@@ -19,7 +24,12 @@ jobs:
           dotnet-version: 8.0.x
       - name: Version from tag
         shell: bash
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          fi
       - run: dotnet test -c Release -p:PodmanHelperVersion=${{ env.VERSION }}
       - run: dotnet pack src/PodmanHelper/PodmanHelper.csproj -c Release -p:PodmanHelperVersion=${{ env.VERSION }}
       - run: dotnet publish src/PodmanHelper/PodmanHelper.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:PodmanHelperVersion=${{ env.VERSION }} -o artifacts/win-x64
@@ -28,6 +38,7 @@ jobs:
         run: Compress-Archive -Path artifacts/win-x64/podman-helper.exe, third_party/mutagen/LICENSE -DestinationPath artifacts/podman-helper-${{ env.VERSION }}-win-x64.zip
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ env.VERSION }}
           generate_release_notes: true
           files: |
             artifacts/*.nupkg
