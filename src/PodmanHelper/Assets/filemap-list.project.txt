@@ -1,0 +1,15 @@
+# podman-helper project file map
+# Lives next to the .dcproj. Entries are merged with the global file
+# (%USERPROFILE%\.podman-helper\filemap-list.txt); a project entry with the same path
+# overrides the global one, and "!path" removes a global entry for this project.
+#
+# Format: <windows-path> [key=value ...]
+#   Relative paths are resolved from this file's directory.
+#   mode=one-way-replica|one-way-safe|two-way-safe|two-way-resolved   (default one-way-replica)
+#   x=<glob>,<glob>     chmod +x after sync        ignore=<pat>,<pat>   Mutagen ignore patterns
+#   target=/vm/path     override VM bind path      wait=true|false      block mount until synced
+#
+# Examples:
+# .\src\Api\bin\Debug\net10.0     mode=one-way-replica
+# .\data                          mode=two-way-safe ignore=*.log,**/tmp
+# !~\.nuget\packages

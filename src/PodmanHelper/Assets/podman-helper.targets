@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  podman-helper hook for Visual Studio docker-compose projects (.dcproj).
+
+  Visual Studio's Microsoft.Docker.Sdk builds the service projects (DockerBuildServiceReferences), then
+  builds the compose project (DockerComposeProjectBuild) and, on F5 / Ctrl+F5, runs "compose up" from the
+  DockerPrepareForLaunch target. This target slots in after the service builds and before the launch:
+  it runs "podman-helper mount" and blocks until every entry in the global and per-project
+  filemap-list.txt is synced into the Podman machine and bind-mounted over its 9p path.
+  A non-zero exit fails the build, so compose never starts against a half-synced path.
+
+  It only runs on a launch (the launch.sem file Visual Studio drops for F5), not on a plain build.
+
+  Knobs (environment variable, Directory.Build.props or the .dcproj):
+    PodmanHelperEnabled=false    turn the hook off (e.g. on a machine that uses Docker Desktop)
+    PodmanHelperAlwaysRun=true   also run on plain builds and from msbuild / dotnet build
+    PodmanHelperTimeout=300      seconds to wait for the initial sync (default 180)
+    PodmanHelperExe=...          path to podman-helper.exe when it is not on PATH
+-->
+<Project>
+
+  <PropertyGroup>
+    <PodmanHelperEnabled Condition="'$(PodmanHelperEnabled)' == ''">true</PodmanHelperEnabled>
+    <PodmanHelperAlwaysRun Condition="'$(PodmanHelperAlwaysRun)' == ''">false</PodmanHelperAlwaysRun>
+    <PodmanHelperTimeout Condition="'$(PodmanHelperTimeout)' == ''">180</PodmanHelperTimeout>
+    <PodmanHelperExe Condition="'$(PodmanHelperExe)' == ''">podman-helper</PodmanHelperExe>
+  </PropertyGroup>
+
+  <Target Name="PodmanHelperMount"
+          AfterTargets="DockerBuildServiceReferences"
+          BeforeTargets="DockerComposeProjectBuild;DockerPrepareForLaunch"
+          Condition="'$(PodmanHelperEnabled)' == 'true' and ('$(PodmanHelperAlwaysRun)' == 'true' or Exists('$(DockerIntermediateOutputPath)\launch.sem'))">
+    <Message Importance="high" Text="podman-helper: syncing and mounting filemap-list.txt entries into the Podman machine..." />
+    <Exec Command="&quot;$(PodmanHelperExe)&quot; mount --project &quot;$(MSBuildProjectDirectory)&quot; --timeout $(PodmanHelperTimeout)"
+          ContinueOnError="false"
+          StandardOutputImportance="high"
+          StandardErrorImportance="high" />
+  </Target>
+
+</Project>

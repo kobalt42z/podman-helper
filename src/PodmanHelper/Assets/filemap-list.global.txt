@@ -1,0 +1,22 @@
+# podman-helper global file map
+# Location: %USERPROFILE%\.podman-helper\filemap-list.txt
+#
+# Every entry here is overlaid for every project. Put things that all Visual Studio
+# projects need: the remote debugger, maybe the NuGet cache.
+#
+# Format: <windows-path> [key=value ...]
+#   ~ and %VAR% expand. Relative paths are resolved from this file's directory.
+#   Quote the path if it contains spaces: "C:\Program Files\x"
+#
+# Keys:
+#   mode=one-way-replica|one-way-safe|two-way-safe|two-way-resolved   (default one-way-replica)
+#   x=<glob>,<glob>     files that get chmod +x in the VM after each sync
+#   ignore=<pat>,<pat>  Mutagen ignore patterns (.git is always ignored)
+#   target=/vm/path     override the VM path to bind over (default: /mnt/<drive>/<path>)
+#   wait=true|false     block `mount` until the first full sync (default true)
+
+# Visual Studio remote debugger (mounted by VS as ~\vsdbg\vs2017u5:/remote_debugger)
+~\vsdbg    mode=one-way-replica  x=**/vsdbg,**/*.sh
+
+# NuGet cache: only enable if a project needs it inside the container (initial sync can be slow)
+# ~\.nuget\packages    mode=one-way-replica

@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
+    <AssemblyName>podman-helper</AssemblyName>
+    <RootNamespace>PodmanHelper</RootNamespace>
+    <Version>$(PodmanHelperVersion)</Version>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- dotnet tool packaging -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>podman-helper</ToolCommandName>
+    <PackageId>podman-helper</PackageId>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)../../artifacts/</PackageOutputPath>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>Overlays broken 9p paths in the Podman Hyper-V machine with Mutagen-synced ext4 copies, driven by filemap-list.txt files.</Description>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+
+    <!-- Set to true to build without the bundled Mutagen (the tool then needs mutagen on PATH). -->
+    <PodmanHelperSkipMutagenDownload Condition="'$(PodmanHelperSkipMutagenDownload)' == ''">false</PodmanHelperSkipMutagenDownload>
+    <MutagenZipName>mutagen_windows_amd64_v$(MutagenVersion).zip</MutagenZipName>
+    <MutagenZipUrl>https://github.com/mutagen-io/mutagen/releases/download/v$(MutagenVersion)/$(MutagenZipName)</MutagenZipUrl>
+    <MutagenZipPath>$(BaseIntermediateOutputPath)mutagen/$(MutagenZipName)</MutagenZipPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\podman-helper.targets" LogicalName="podman-helper.targets" />
+    <EmbeddedResource Include="Assets\filemap-list.project.txt" LogicalName="filemap-list.project.txt" />
+    <EmbeddedResource Include="Assets\filemap-list.global.txt" LogicalName="filemap-list.global.txt" />
+    <EmbeddedResource Include="..\..\third_party\mutagen\LICENSE" LogicalName="mutagen.LICENSE" />
+    <None Include="..\..\third_party\mutagen\LICENSE" Pack="true" PackagePath="third_party/mutagen/LICENSE" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>MutagenVersion</_Parameter1>
+      <_Parameter2>$(MutagenVersion)</_Parameter2>
+    </AssemblyAttribute>
+    <InternalsVisibleTo Include="PodmanHelper.Tests" />
+  </ItemGroup>
+
+  <!--
+    Bundled Mutagen: the unmodified official release zip is downloaded once (cached under obj/),
+    its SHA-256 is verified against the published SHA256SUMS value, and it is embedded as a resource.
+    At runtime the helper extracts it under %LOCALAPPDATA%\podman-helper\mutagen\<version>\.
+  -->
+  <Target Name="DownloadMutagen" BeforeTargets="PrepareForBuild" Condition="'$(PodmanHelperSkipMutagenDownload)' != 'true'">
+    <MakeDir Directories="$(BaseIntermediateOutputPath)mutagen" />
+    <DownloadFile Condition="!Exists('$(MutagenZipPath)')"
+                  SourceUrl="$(MutagenZipUrl)"
+                  DestinationFolder="$(BaseIntermediateOutputPath)mutagen"
+                  DestinationFileName="$(MutagenZipName)"
+                  Retries="3" />
+    <GetFileHash Files="$(MutagenZipPath)" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="_MutagenActualHash" />
+    </GetFileHash>
+    <Error Condition="'$(_MutagenActualHash)' != '$(MutagenZipSha256)'"
+           Text="Bundled Mutagen zip hash mismatch: expected $(MutagenZipSha256), got $(_MutagenActualHash). Delete $(MutagenZipPath) and rebuild." />
+    <ItemGroup>
+      <EmbeddedResource Include="$(MutagenZipPath)" LogicalName="mutagen.zip" />
+    </ItemGroup>
+  </Target>
+
+</Project>
