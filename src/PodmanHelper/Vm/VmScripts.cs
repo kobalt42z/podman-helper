@@ -15,6 +15,8 @@ public static class VmScripts
         var sb = new StringBuilder();
         sb.Append("owner=\"${SUDO_USER:-$(id -un)}\"\n");
         sb.Append("mkdir -p ").Append(VmPaths.SyncRoot).Append('\n');
+        // traversable by every uid, whatever umask the login had
+        sb.Append("chmod 755 ").Append(VmPaths.Root).Append(' ').Append(VmPaths.SyncRoot).Append('\n');
         sb.Append("touch ").Append(VmPaths.MountsFile).Append('\n');
         foreach (var e in entries)
         {
@@ -22,8 +24,18 @@ public static class VmScripts
             sb.Append("mkdir -p ").Append(dir).Append('\n');
             sb.Append("chown \"$owner\" ").Append(dir).Append('\n');
         }
+        sb.Append(Relabel);
         return sb.ToString();
     }
+
+    /// <summary>
+    /// SELinux is enforcing on Fedora CoreOS. Files under /var/lib get var_lib_t, which containers (container_t) may
+    /// not read, so a bind mount of the synced copy shows "Permission denied" inside a container even though the 9p
+    /// path it covers was readable. container_file_t is the type podman gives to volume content. New files inherit
+    /// it from their folder because Mutagen stages next to the sync root (see --stage-mode-beta neighboring).
+    /// </summary>
+    internal static readonly string Relabel =
+        "if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled; then chcon -R -t container_file_t " + VmPaths.SyncRoot + "; fi\n";
 
     /// <summary>Marks the files matching the entry's x= globs executable. Needs sudo (files may be owned by root after a mode change).</summary>
     public static string ApplyExecBits(IEnumerable<FileMapEntry> entries)
@@ -73,6 +85,8 @@ public static class VmScripts
     {
         var sb = new StringBuilder();
         sb.Append("touch ").Append(VmPaths.MountsFile).Append('\n');
+        // catches files written before this version, or by anything that did not inherit the label
+        sb.Append(Relabel);
         foreach (var e in entries)
         {
             var src = VmPaths.ShellQuote(e.VmSyncPath);
@@ -142,6 +156,7 @@ public static class VmScripts
         "echo \"user=$(id -un) uid=$(id -u)\"\n" +
         "if sudo -n true 2>/dev/null; then echo sudo=ok; else echo sudo=missing; fi\n" +
         "echo \"mnt_c=$(findmnt -n -o FSTYPE --target /mnt/c 2>/dev/null || echo none)\"\n" +
+        "echo \"selinux=$(getenforce 2>/dev/null || echo none)\"\n" +
         "echo \"varlib_free=$(df -h --output=avail /var/lib 2>/dev/null | tail -n1 | tr -d ' ')\"\n" +
         "for t in findmnt flock mountpoint scp; do command -v $t >/dev/null && echo \"tool_$t=ok\" || echo \"tool_$t=missing\"; done\n";
 }

@@ -107,3 +107,16 @@ public class FileEntryTests
         }
     }
 }
+
+public class SelinuxTests
+{
+    private static FileMapEntry E() => new() { WindowsPath = @"C:\Users\me\vsdbg", Scope = FileMapEntry.GlobalScope, SourceFile = "t", Line = 1 };
+
+    [Fact]
+    public void PrepareAndMountRelabelSyncedCopiesForContainers()
+    {
+        Assert.Contains("chcon -R -t container_file_t /var/lib/podman-helper/sync", VmScripts.Prepare(new[] { E() }));
+        Assert.Contains("chcon -R -t container_file_t /var/lib/podman-helper/sync", VmScripts.Mount(new[] { E() }));
+        Assert.Contains("selinuxenabled", VmScripts.Relabel);
+    }
+}
