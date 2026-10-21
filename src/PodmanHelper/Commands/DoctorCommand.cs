@@ -120,6 +120,7 @@ public static class DoctorCommand
                 var fs = facts.GetValueOrDefault("mnt_c", "none");
                 if (fs == "none") Output.Warn("/mnt/c is not a mount in the machine; the Windows drive may be mounted elsewhere (use target= on entries)");
                 else Output.Ok($"/mnt/c is {fs}, free space under /var/lib: {facts.GetValueOrDefault("varlib_free")}");
+                Output.Ok($"SELinux: {facts.GetValueOrDefault("selinux", "unknown")} (synced copies are labeled container_file_t)");
                 foreach (var tool in new[] { "findmnt", "flock", "mountpoint", "scp" })
                 {
                     if (facts.GetValueOrDefault("tool_" + tool) != "ok") Fail($"{tool} missing in the machine", "unexpected for Fedora CoreOS; report it");

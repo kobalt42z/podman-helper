@@ -108,6 +108,7 @@ plain builds, `PodmanHelperTimeout`, `PodmanHelperExe`.
 
 ## Caveats
 
+- **SELinux.** The machine runs SELinux in enforcing mode. The synced copies are labeled `container_file_t` so containers can read them. Without that label, `ls` inside a container shows "Permission denied". Mutagen stages new files next to the copy so they keep the label, and every `mount` relabels the copies again.
 - **Sync, not a mount.** Changes made on Windows reach the VM after a sync cycle (well under a second with
   file watching); the initial copy of a large tree takes minutes. Keep the NuGet cache off the list unless a
   project needs it in the container.

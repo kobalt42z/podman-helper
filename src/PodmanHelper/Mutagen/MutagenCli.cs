@@ -11,6 +11,9 @@ public sealed class MutagenCli
     public const string ScopeLabel = "ph-scope";
     public const string MachineLabel = "ph-machine";
     public const string ModeLabel = "ph-mode";
+    /// <summary>Bumped when the create flags change in a way that needs existing sessions recreated.</summary>
+    public const string LayoutLabel = "ph-layout";
+    public const string LayoutVersion = "2";
 
     private readonly IProcessRunner _runner;
     private readonly Dictionary<string, string> _env;
@@ -78,12 +81,16 @@ public sealed class MutagenCli
             "--label", $"{ScopeLabel}={ScopeId.For(entry.Scope)}",
             "--label", $"{MachineLabel}={machineName}",
             "--label", $"{ModeLabel}={entry.Mode.ToMutagen()}",
+            "--label", $"{LayoutLabel}={LayoutVersion}",
             "--sync-mode", entry.Mode.ToMutagen(),
             "--symlink-mode", "portable",
             "--ignore-vcs",
             // Readable by any uid inside containers; executability is handled separately (x= option).
             "--default-file-mode-beta", "0644",
             "--default-directory-mode-beta", "0755",
+            // stage inside /var/lib/podman-helper/sync instead of ~/.mutagen, so new files are created with the
+            // folder's SELinux label (a rename from ~/.mutagen would keep the home label and hide them from containers)
+            "--stage-mode-beta", "neighboring",
         };
         foreach (var ignore in entry.Ignores)
         {

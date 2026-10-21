@@ -98,6 +98,7 @@ public static class MountCommand
                            && existing.BetaPath == e.VmSyncPath
                            && existing.BetaHost == ctx.Ssh.Alias;
             var sameMode = existing.Labels.TryGetValue(MutagenCli.ModeLabel, out var m) ? m == e.Mode.ToMutagen() : true;
+            sameMode &= existing.Labels.TryGetValue(MutagenCli.LayoutLabel, out var l) && l == MutagenCli.LayoutVersion;
 
             if (samePath && sameMode && !existing.IsHalted)
             {
