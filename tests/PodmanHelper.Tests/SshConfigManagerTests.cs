@@ -61,3 +61,15 @@ public class PrivilegedCommandTests
         Assert.Equal("uid=0", output.Trim());
     }
 }
+
+public class KnownHostsTests
+{
+    [Fact]
+    public void BlockUsesARealKnownHostsFileNotNul()
+    {
+        var block = SshConfigManager.BuildBlock("a", "127.0.0.1", 1, "root", "k");
+        Assert.DoesNotContain("UserKnownHostsFile NUL", block);
+        Assert.Contains("UserKnownHostsFile \"" + SshConfigManager.KnownHostsPath() + "\"", block);
+        Assert.EndsWith(Path.Combine("podman-helper", "known_hosts"), SshConfigManager.KnownHostsPath());
+    }
+}
