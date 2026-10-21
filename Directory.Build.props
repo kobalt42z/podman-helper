@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <PodmanHelperVersion>0.1.0</PodmanHelperVersion>
+    <MutagenVersion>0.18.1</MutagenVersion>
+    <MutagenZipSha256>76f8223d5e6b607efdd9516473669ae5492e4f142887352d59bc6934d1f07a2d</MutagenZipSha256>
+  </PropertyGroup>
+</Project>

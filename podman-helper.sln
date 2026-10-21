@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{F474CD9A-1C30-4010-AFEC-A3446627F6C4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PodmanHelper", "src\PodmanHelper\PodmanHelper.csproj", "{F23D2B7C-5F22-474F-BFB5-E184E3CB5144}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{32F7AA5B-0E1D-4B3E-ACB6-A991E021529A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PodmanHelper.Tests", "tests\PodmanHelper.Tests\PodmanHelper.Tests.csproj", "{1A2A0786-A43B-4049-918D-CF09FA1E1FA4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F23D2B7C-5F22-474F-BFB5-E184E3CB5144}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F23D2B7C-5F22-474F-BFB5-E184E3CB5144}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F23D2B7C-5F22-474F-BFB5-E184E3CB5144}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F23D2B7C-5F22-474F-BFB5-E184E3CB5144}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A2A0786-A43B-4049-918D-CF09FA1E1FA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A2A0786-A43B-4049-918D-CF09FA1E1FA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A2A0786-A43B-4049-918D-CF09FA1E1FA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A2A0786-A43B-4049-918D-CF09FA1E1FA4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F23D2B7C-5F22-474F-BFB5-E184E3CB5144} = {F474CD9A-1C30-4010-AFEC-A3446627F6C4}
+		{1A2A0786-A43B-4049-918D-CF09FA1E1FA4} = {32F7AA5B-0E1D-4B3E-ACB6-A991E021529A}
+	EndGlobalSection
+EndGlobal

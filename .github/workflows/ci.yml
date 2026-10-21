@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Cache bundled Mutagen
+        uses: actions/cache@v4
+        with:
+          path: src/PodmanHelper/obj/mutagen
+          key: mutagen-0.18.1
+      - run: dotnet build -c Release
+      - run: dotnet test -c Release --no-build
+      - run: dotnet pack src/PodmanHelper/PodmanHelper.csproj -c Release --no-build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: podman-helper-nupkg
+          path: artifacts/*.nupkg
+
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet publish src/PodmanHelper/PodmanHelper.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o artifacts/win-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: podman-helper-win-x64
+          path: artifacts/win-x64/podman-helper.exe
